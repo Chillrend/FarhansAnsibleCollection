@@ -1,0 +1,17 @@
+---
+- name: Update Servers
+hosts: all
+become: yes
+tasks:
+  - name: Update APT cache and upgrade packages (Debian/Ubuntu)
+    ansible.builtin.apt:
+      update_cache: yes
+      upgrade: dist
+    when: ansible_os_family == "Debian"
+
+  - name: Update all packages (RHEL/CentOS/Rocky)
+    ansible.builtin.dnf:
+      name: '*'
+      state: latest
+      update_cache: yes
+    when: ansible_os_family == "RedHat"
