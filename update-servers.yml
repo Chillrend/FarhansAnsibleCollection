@@ -7,19 +7,19 @@
     # ---------------------------------------------------------
     # DEBIAN / UBUNTU FAMILY
     # ---------------------------------------------------------
-    - name: Update packages (Legacy Debian 10 - Shell Workaround)
+    - name: Update packages (Legacy Debian 10 & Ubuntu 20 - Shell Workaround)
       ansible.builtin.shell: apt-get update && apt-get dist-upgrade -y
       when: 
         - ansible_facts['os_family'] == "Debian"
-        - ansible_facts['distribution_major_version'] == "10"
+        - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] == '10') or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] == '20')
 
-    - name: Update packages (Modern Debian 11 through 13)
+    - name: Update packages (Modern Debian 11+ & Ubuntu 22+)
       ansible.builtin.apt:
         update_cache: yes
         upgrade: dist
       when: 
         - ansible_facts['os_family'] == "Debian"
-        - ansible_facts['distribution_major_version'] | int >= 11
+        - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] | int >= 11) or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int >= 22)
 
 
     # ---------------------------------------------------------
