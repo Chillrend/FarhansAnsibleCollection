@@ -11,7 +11,7 @@
       ansible.builtin.shell: apt-get update && apt-get dist-upgrade -y
       when: 
         - ansible_facts['os_family'] == "Debian"
-        - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] == '10') or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] == '20')
+        - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] <= '10') or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] <= '20')
 
     - name: Update packages (Modern Debian 11+ & Ubuntu 22+)
       ansible.builtin.apt:
