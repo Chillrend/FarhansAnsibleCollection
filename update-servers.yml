@@ -1,17 +1,41 @@
 ---
-- name: Update Servers
+- name: Universal Server Patch Management
   hosts: all
   become: yes
   tasks:
-    - name: Update APT cache and upgrade packages (Debian/Ubuntu)
+
+    # ---------------------------------------------------------
+    # DEBIAN / UBUNTU FAMILY
+    # ---------------------------------------------------------
+    - name: Update packages (Legacy Debian 10 - Shell Workaround)
+      ansible.builtin.shell: apt-get update && apt-get dist-upgrade -y
+      when: 
+        - ansible_os_family == "Debian"
+        - ansible_distribution_major_version == "10"
+
+    - name: Update packages (Modern Debian 11 through 13)
       ansible.builtin.apt:
         update_cache: yes
         upgrade: dist
-      when: ansible_os_family == "Debian"
+      when: 
+        - ansible_os_family == "Debian"
+        - ansible_distribution_major_version | int >= 11
 
-    - name: Update all packages (RHEL/CentOS/Rocky)
+
+    # ---------------------------------------------------------
+    # REDHAT / CENTOS / ROCKY FAMILY
+    # ---------------------------------------------------------
+    - name: Update packages (Legacy CentOS 4 and CentOS 7 - Shell Workaround)
+      ansible.builtin.shell: yum clean all && yum update -y
+      when: 
+        - ansible_os_family == "RedHat"
+        - ansible_distribution_major_version | int <= 7
+
+    - name: Update packages (Modern Rocky / CentOS 8+)
       ansible.builtin.dnf:
         name: '*'
         state: latest
         update_cache: yes
-      when: ansible_os_family == "RedHat"
+      when: 
+        - ansible_os_family == "RedHat"
+        - ansible_distribution_major_version | int >= 8
