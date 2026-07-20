@@ -1,0 +1,22 @@
+---
+- name: Install and Configure NetBird
+  hosts: "{{ target_server }}"
+  become: yes
+  tasks:
+    - name: Download and install NetBird
+      ansible.builtin.shell: curl -fsSL https://pkgs.netbird.io/install.sh | sh
+      args:
+        creates: /usr/bin/netbird
+
+    - name: Connect to NetBird (Standard)
+      ansible.builtin.command: >
+        netbird up --management-url {{ netbird_management_url }}
+        --setup-key {{ netbird_setup_key }}
+      when: not (enable_netbird_ssh | default(false) | bool)
+
+    - name: Connect to NetBird (With SSH Enabled)
+      ansible.builtin.command: >
+        netbird up --management-url {{ netbird_management_url }}
+        --setup-key {{ netbird_setup_key }}
+        --enable-ssh
+      when: enable_netbird_ssh | default(false) | bool
