@@ -1,0 +1,19 @@
+---
+- name: Quick Inventory Connectivity Check
+  hosts: all
+  # CRITICAL: This stops Ansible from taking 3-5 seconds per host to collect disk/hardware info
+  gather_facts: false
+  
+  tasks:
+    - name: Test SSH connection and Python environment
+      ansible.builtin.ping:
+
+    # Optional: Grab the uptime just so the Semaphore logs show something useful
+    - name: Check server uptime
+      ansible.builtin.command: uptime
+      register: uptime_output
+      changed_when: false
+
+    - name: Display uptime in Semaphore logs
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} is UP -> {{ uptime_output.stdout }}"
