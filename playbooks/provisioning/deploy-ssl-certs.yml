@@ -99,3 +99,23 @@
           SSL Deployment Summary for {{ inventory_hostname }}:
             Certificate: {{ ssl_cert_dir }}/{{ ssl_cert_filename }} ({{ 'OK' if (cert_stat.stat.exists | default(false)) else 'SKIPPED' if ssl_cert_content is not defined else 'MISSING' }})
             Private Key: {{ ssl_key_dir }}/{{ ssl_key_filename }} ({{ 'OK' if (key_stat.stat.exists | default(false)) else 'SKIPPED' if ssl_key_content is not defined else 'MISSING' }})
+
+    # ---------------------------------------------------------
+    # MANUAL DEPLOYMENT REMINDER
+    # ---------------------------------------------------------
+    - name: 🚨 MANUAL DEPLOYMENT REMINDER 🚨
+      run_once: true
+      ansible.builtin.debug:
+        msg: |
+          ========================================================================
+          🚨 ATTENTION: MANUAL SSL DEPLOYMENT REQUIRED FOR CERTAIN SERVERS 🚨
+          ========================================================================
+          The following servers are NOT covered by this automated deployment 
+          and MUST be updated manually:
+
+            - Web PNJ (Colo)
+            - Simpeg (Colo)
+            - SIM PENS (Super legacy server that somehow we still use)
+            - Unisys
+            - Akademik Server
+          ========================================================================
