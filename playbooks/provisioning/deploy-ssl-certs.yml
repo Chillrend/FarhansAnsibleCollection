@@ -17,6 +17,7 @@
       register: ssl_cert_group_check
       failed_when: false
       changed_when: false
+      check_mode: false
 
     - name: Set SSL key group based on system state
       ansible.builtin.set_fact:
