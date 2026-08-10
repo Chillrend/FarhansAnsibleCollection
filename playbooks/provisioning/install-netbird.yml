@@ -8,15 +8,31 @@
       args:
         creates: /usr/bin/netbird
 
+    - name: Ensure NetBird service is enabled and running
+      ansible.builtin.systemd:
+        name: netbird
+        state: started
+        enabled: yes
+
+    - name: Check NetBird connection status
+      ansible.builtin.command: netbird status
+      register: netbird_status
+      changed_when: false
+      failed_when: false
+
     - name: Connect to NetBird (Standard)
       ansible.builtin.command: >
         netbird up --management-url {{ netbird_management_url }}
         --setup-key {{ netbird_setup_key }}
-      when: not (enable_netbird_ssh | default(false) | bool)
+      when:
+        - not (enable_netbird_ssh | default(false) | bool)
+        - "'Connected' not in netbird_status.stdout"
 
     - name: Connect to NetBird (With SSH Enabled)
       ansible.builtin.command: >
         netbird up --management-url {{ netbird_management_url }}
         --setup-key {{ netbird_setup_key }}
         --enable-ssh
-      when: enable_netbird_ssh | default(false) | bool
+      when:
+        - enable_netbird_ssh | default(false) | bool
+        - "'Connected' not in netbird_status.stdout"

@@ -1,0 +1,87 @@
+---
+- name: Deploy SSL Certificates
+  hosts: "{{ target_server }}"
+  become: yes
+  vars:
+    ssl_cert_dir: /etc/ssl/certs
+    ssl_key_dir: /etc/ssl/private
+    ssl_cert_filename: "{{ cert_filename | default('server.crt') }}"
+    ssl_key_filename: "{{ key_filename | default('server.key') }}"
+
+  tasks:
+    # ---------------------------------------------------------
+    # DIRECTORY SETUP
+    # ---------------------------------------------------------
+    - name: Ensure SSL certificate directory exists
+      ansible.builtin.file:
+        path: "{{ ssl_cert_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure SSL private key directory exists
+      ansible.builtin.file:
+        path: "{{ ssl_key_dir }}"
+        state: directory
+        owner: root
+        group: ssl-cert
+        mode: '0710'
+
+    # ---------------------------------------------------------
+    # DEPLOY CERTIFICATE
+    # ---------------------------------------------------------
+    - name: Deploy SSL certificate
+      ansible.builtin.copy:
+        content: "{{ ssl_cert_content }}"
+        dest: "{{ ssl_cert_dir }}/{{ ssl_cert_filename }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: ssl_cert_content is defined and ssl_cert_content | length > 0
+
+    # ---------------------------------------------------------
+    # DEPLOY CA CHAIN (OPTIONAL)
+    # ---------------------------------------------------------
+    - name: Deploy CA chain certificate
+      ansible.builtin.copy:
+        content: "{{ ssl_chain_content }}"
+        dest: "{{ ssl_cert_dir }}/{{ ssl_chain_filename | default('ca-chain.crt') }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: ssl_chain_content is defined and ssl_chain_content | length > 0
+
+    # ---------------------------------------------------------
+    # DEPLOY PRIVATE KEY
+    # ---------------------------------------------------------
+    - name: Deploy SSL private key
+      ansible.builtin.copy:
+        content: "{{ ssl_key_content }}"
+        dest: "{{ ssl_key_dir }}/{{ ssl_key_filename }}"
+        owner: root
+        group: ssl-cert
+        mode: '0640'
+      when: ssl_key_content is defined and ssl_key_content | length > 0
+
+    # ---------------------------------------------------------
+    # VERIFICATION
+    # ---------------------------------------------------------
+    - name: Verify certificate file exists and has correct permissions
+      ansible.builtin.stat:
+        path: "{{ ssl_cert_dir }}/{{ ssl_cert_filename }}"
+      register: cert_stat
+      when: ssl_cert_content is defined
+
+    - name: Verify private key file exists and has correct permissions
+      ansible.builtin.stat:
+        path: "{{ ssl_key_dir }}/{{ ssl_key_filename }}"
+      register: key_stat
+      when: ssl_key_content is defined
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          SSL Deployment Summary for {{ inventory_hostname }}:
+            Certificate: {{ ssl_cert_dir }}/{{ ssl_cert_filename }} ({{ 'OK' if cert_stat.stat.exists | default(false) else 'MISSING' }})
+            Private Key: {{ ssl_key_dir }}/{{ ssl_key_filename }} ({{ 'OK' if key_stat.stat.exists | default(false) else 'MISSING' }})
