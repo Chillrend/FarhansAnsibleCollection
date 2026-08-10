@@ -21,9 +21,9 @@
     - name: Scan Nginx for SSL paths
       ansible.builtin.shell: |
         if [ -d "/etc/nginx/sites-enabled" ] && [ "$(ls -A /etc/nginx/sites-enabled 2>/dev/null)" ]; then
-            grep -rhoE "(ssl_certificate|ssl_certificate_key)\s+[^;]+" /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $2}' | sort -u
+            grep -RhoE "(ssl_certificate|ssl_certificate_key)\s+[^;]+" /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $2}' | sort -u
         elif [ -d "/etc/nginx" ]; then
-            grep -rhoE "(ssl_certificate|ssl_certificate_key)\s+[^;]+" /etc/nginx/ 2>/dev/null | awk '{print $2}' | sort -u
+            grep -RhoE "(ssl_certificate|ssl_certificate_key)\s+[^;]+" /etc/nginx/ 2>/dev/null | awk '{print $2}' | sort -u
         fi
       register: nginx_ssl_scan
       changed_when: false
@@ -36,13 +36,13 @@
     - name: Scan Apache/HTTPD for SSL paths
       ansible.builtin.shell: |
         if [ -d "/etc/apache2/sites-enabled" ] && [ "$(ls -A /etc/apache2/sites-enabled 2>/dev/null)" ]; then
-            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/apache2/sites-enabled/ 2>/dev/null | awk '{print $2}' | sort -u
+            grep -RhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/apache2/sites-enabled/ 2>/dev/null | awk '{print $2}' | sort -u
         elif [ -d "/etc/apache2" ]; then
-            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/apache2/ 2>/dev/null | awk '{print $2}' | sort -u
+            grep -RhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/apache2/ 2>/dev/null | awk '{print $2}' | sort -u
         elif [ -d "/etc/httpd/conf.d" ] && [ "$(ls -A /etc/httpd/conf.d 2>/dev/null)" ]; then
-            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/httpd/conf.d/ 2>/dev/null | awk '{print $2}' | sort -u
+            grep -RhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/httpd/conf.d/ 2>/dev/null | awk '{print $2}' | sort -u
         elif [ -d "/etc/httpd" ]; then
-            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/httpd/ 2>/dev/null | awk '{print $2}' | sort -u
+            grep -RhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/httpd/ 2>/dev/null | awk '{print $2}' | sort -u
         fi
       register: apache_ssl_scan
       changed_when: false
