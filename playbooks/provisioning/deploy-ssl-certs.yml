@@ -7,6 +7,7 @@
     ssl_key_dir: /etc/ssl/private
     ssl_cert_filename: "{{ cert_filename | default('server.crt') }}"
     ssl_key_filename: "{{ key_filename | default('server.key') }}"
+    ssl_key_group: "{{ 'ssl-cert' if ansible_facts['os_family'] == 'Debian' else 'root' }}"
 
   tasks:
     # ---------------------------------------------------------
@@ -25,7 +26,7 @@
         path: "{{ ssl_key_dir }}"
         state: directory
         owner: root
-        group: ssl-cert
+        group: "{{ ssl_key_group }}"
         mode: '0710'
 
     # ---------------------------------------------------------
@@ -60,7 +61,7 @@
         content: "{{ ssl_key_content }}"
         dest: "{{ ssl_key_dir }}/{{ ssl_key_filename }}"
         owner: root
-        group: ssl-cert
+        group: "{{ ssl_key_group }}"
         mode: '0640'
       when: ssl_key_content is defined and ssl_key_content | length > 0
 
@@ -83,5 +84,5 @@
       ansible.builtin.debug:
         msg: |
           SSL Deployment Summary for {{ inventory_hostname }}:
-            Certificate: {{ ssl_cert_dir }}/{{ ssl_cert_filename }} ({{ 'OK' if cert_stat.stat.exists | default(false) else 'MISSING' }})
-            Private Key: {{ ssl_key_dir }}/{{ ssl_key_filename }} ({{ 'OK' if key_stat.stat.exists | default(false) else 'MISSING' }})
+            Certificate: {{ ssl_cert_dir }}/{{ ssl_cert_filename }} ({{ 'OK' if (cert_stat.stat.exists | default(false)) else 'SKIPPED' if ssl_cert_content is not defined else 'MISSING' }})
+            Private Key: {{ ssl_key_dir }}/{{ ssl_key_filename }} ({{ 'OK' if (key_stat.stat.exists | default(false)) else 'SKIPPED' if ssl_key_content is not defined else 'MISSING' }})
