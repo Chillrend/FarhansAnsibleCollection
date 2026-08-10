@@ -7,9 +7,21 @@
     ssl_key_dir: /etc/ssl/private
     ssl_cert_filename: "{{ cert_filename | default('server.crt') }}"
     ssl_key_filename: "{{ key_filename | default('server.key') }}"
-    ssl_key_group: "{{ 'ssl-cert' if ansible_facts['os_family'] == 'Debian' else 'root' }}"
 
   tasks:
+    # ---------------------------------------------------------
+    # PRE-FLIGHT CHECKS
+    # ---------------------------------------------------------
+    - name: Check if ssl-cert group exists
+      ansible.builtin.command: getent group ssl-cert
+      register: ssl_cert_group_check
+      failed_when: false
+      changed_when: false
+
+    - name: Set SSL key group based on system state
+      ansible.builtin.set_fact:
+        ssl_key_group: "{{ 'ssl-cert' if ssl_cert_group_check.rc == 0 else 'root' }}"
+
     # ---------------------------------------------------------
     # DIRECTORY SETUP
     # ---------------------------------------------------------
