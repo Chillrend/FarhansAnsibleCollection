@@ -47,7 +47,7 @@
     # ---------------------------------------------------------
     - name: Deploy SSL certificate
       ansible.builtin.copy:
-        content: "{{ ssl_cert_content }}"
+        content: "{{ ssl_cert_content if ssl_cert_content.startswith('-----BEGIN') else ssl_cert_content | b64decode }}"
         dest: "{{ ssl_cert_dir }}/{{ ssl_cert_filename }}"
         owner: root
         group: root
@@ -59,7 +59,7 @@
     # ---------------------------------------------------------
     - name: Deploy CA chain certificate
       ansible.builtin.copy:
-        content: "{{ ssl_chain_content }}"
+        content: "{{ ssl_chain_content if ssl_chain_content.startswith('-----BEGIN') else ssl_chain_content | b64decode }}"
         dest: "{{ ssl_cert_dir }}/{{ ssl_chain_filename | default('ca-chain.crt') }}"
         owner: root
         group: root
@@ -71,7 +71,7 @@
     # ---------------------------------------------------------
     - name: Deploy SSL private key
       ansible.builtin.copy:
-        content: "{{ ssl_key_content }}"
+        content: "{{ ssl_key_content if ssl_key_content.startswith('-----BEGIN') else ssl_key_content | b64decode }}"
         dest: "{{ ssl_key_dir }}/{{ ssl_key_filename }}"
         owner: root
         group: "{{ ssl_key_group }}"
