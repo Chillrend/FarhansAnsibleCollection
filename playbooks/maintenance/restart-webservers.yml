@@ -1,0 +1,94 @@
+---
+- name: Web Server Restart & SSL Validation
+  hosts: "{{ target_server | default('all') }}"
+  become: yes
+  tasks:
+    # ---------------------------------------------------------
+    # CHECK RUNNING SERVICES (OS AGNOSTIC)
+    # ---------------------------------------------------------
+    - name: Populate service facts
+      ansible.builtin.service_facts:
+
+    - name: Set facts for active web servers
+      ansible.builtin.set_fact:
+        nginx_active: "{{ 'nginx.service' in ansible_facts.services and ansible_facts.services['nginx.service'].state == 'running' }}"
+        apache2_active: "{{ 'apache2.service' in ansible_facts.services and ansible_facts.services['apache2.service'].state == 'running' }}"
+        httpd_active: "{{ 'httpd.service' in ansible_facts.services and ansible_facts.services['httpd.service'].state == 'running' }}"
+
+    # ---------------------------------------------------------
+    # DISCOVER NGINX SSL CONFIG
+    # ---------------------------------------------------------
+    - name: Scan Nginx for SSL paths
+      ansible.builtin.shell: |
+        if [ -d "/etc/nginx/sites-enabled" ] && [ "$(ls -A /etc/nginx/sites-enabled 2>/dev/null)" ]; then
+            grep -rhoE "(ssl_certificate|ssl_certificate_key)\s+[^;]+" /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $2}' | sort -u
+        elif [ -d "/etc/nginx" ]; then
+            grep -rhoE "(ssl_certificate|ssl_certificate_key)\s+[^;]+" /etc/nginx/ 2>/dev/null | awk '{print $2}' | sort -u
+        fi
+      register: nginx_ssl_scan
+      changed_when: false
+      check_mode: false
+      when: nginx_active
+
+    # ---------------------------------------------------------
+    # DISCOVER APACHE SSL CONFIG (Debian/Ubuntu & RHEL/CentOS)
+    # ---------------------------------------------------------
+    - name: Scan Apache/HTTPD for SSL paths
+      ansible.builtin.shell: |
+        if [ -d "/etc/apache2/sites-enabled" ] && [ "$(ls -A /etc/apache2/sites-enabled 2>/dev/null)" ]; then
+            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/apache2/sites-enabled/ 2>/dev/null | awk '{print $2}' | sort -u
+        elif [ -d "/etc/apache2" ]; then
+            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/apache2/ 2>/dev/null | awk '{print $2}' | sort -u
+        elif [ -d "/etc/httpd/conf.d" ] && [ "$(ls -A /etc/httpd/conf.d 2>/dev/null)" ]; then
+            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/httpd/conf.d/ 2>/dev/null | awk '{print $2}' | sort -u
+        elif [ -d "/etc/httpd" ]; then
+            grep -rhoE "(SSLCertificateFile|SSLCertificateKeyFile)\s+.*" /etc/httpd/ 2>/dev/null | awk '{print $2}' | sort -u
+        fi
+      register: apache_ssl_scan
+      changed_when: false
+      check_mode: false
+      when: apache2_active or httpd_active
+
+    # ---------------------------------------------------------
+    # DISPLAY CONFIGURATION SUMMARY
+    # ---------------------------------------------------------
+    - name: Display configured SSL certificates
+      ansible.builtin.debug:
+        msg: |
+          SSL Configured Paths on {{ inventory_hostname }}:
+          {% if nginx_active and (nginx_ssl_scan.stdout_lines | default([])) | length > 0 %}
+          Nginx:
+          {{ nginx_ssl_scan.stdout_lines | map('regex_replace', '^', '  - ') | join('\n') }}
+          {% elif nginx_active %}
+          Nginx: (No SSL paths detected)
+          {% endif %}
+          {% if (apache2_active or httpd_active) and (apache_ssl_scan.stdout_lines | default([])) | length > 0 %}
+          Apache/HTTPD:
+          {{ apache_ssl_scan.stdout_lines | map('regex_replace', '^', '  - ') | join('\n') }}
+          {% elif apache2_active or httpd_active %}
+          Apache/HTTPD: (No SSL paths detected)
+          {% endif %}
+          {% if not nginx_active and not apache2_active and not httpd_active %}
+          No running Nginx or Apache services found on this host.
+          {% endif %}
+
+    # ---------------------------------------------------------
+    # RESTART SERVICES
+    # ---------------------------------------------------------
+    - name: Restart Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+      when: nginx_active
+
+    - name: Restart Apache (Debian/Ubuntu)
+      ansible.builtin.systemd:
+        name: apache2
+        state: restarted
+      when: apache2_active
+
+    - name: Restart HTTPD (RHEL/CentOS)
+      ansible.builtin.systemd:
+        name: httpd
+        state: restarted
+      when: httpd_active
