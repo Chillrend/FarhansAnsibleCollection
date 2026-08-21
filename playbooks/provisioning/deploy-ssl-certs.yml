@@ -1,4 +1,50 @@
 ---
+# ==============================================================================
+# PLAY 1: VALIDATE CERTIFICATES LOCALLY
+# ==============================================================================
+- name: Validate Local Certificates Before Deployment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    cert_base_name: "pnj.ac.id"
+    local_cert_path: "/certs/{{ cert_base_name }}.crt"
+    local_key_path: "/certs/{{ cert_base_name }}.key"
+
+  tasks:
+    - name: Check if certificate file exists in Semaphore volume
+      ansible.builtin.stat:
+        path: "{{ local_cert_path }}"
+      register: cert_file
+      failed_when: not cert_file.stat.exists
+
+    - name: Check if private key file exists in Semaphore volume
+      ansible.builtin.stat:
+        path: "{{ local_key_path }}"
+      register: key_file
+      failed_when: not key_file.stat.exists
+
+    - name: Get Certificate Modulus
+      ansible.builtin.command: "openssl x509 -noout -modulus -in {{ local_cert_path }}"
+      register: cert_modulus
+      changed_when: false
+
+    - name: Get Private Key Modulus
+      ansible.builtin.command: "openssl rsa -noout -modulus -in {{ local_key_path }}"
+      register: key_modulus
+      changed_when: false
+
+    - name: Assert Certificate and Key Match
+      ansible.builtin.assert:
+        that:
+          - cert_modulus.stdout == key_modulus.stdout
+        fail_msg: "CRITICAL: The certificate and private key in /certs do not match! Deployment aborted."
+        success_msg: "Validation passed: Certificate and private key match perfectly."
+
+
+# ==============================================================================
+# PLAY 2: DEPLOY TO LINUX TARGET SERVERS
+# ==============================================================================
 - name: Deploy SSL to Linux Target Servers
   hosts: "{{ target_server }}"
   become: yes
@@ -7,7 +53,6 @@
     ssl_cert_dir: "/etc/ssl/certs"
     ssl_key_dir: "/etc/ssl/private"
     cert_base_name: "pnj.ac.id"
-    # Mapping the full suite from the Docker volume inside Semaphore
     local_cert_path: "/certs/{{ cert_base_name }}.crt"
     local_intermediate_path: "/certs/{{ cert_base_name }}-intermediate.crt"
     local_fullchain_path: "/certs/{{ cert_base_name }}-fullchain.crt"
