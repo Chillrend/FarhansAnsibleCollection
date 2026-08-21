@@ -1,7 +1,4 @@
 ---
-# ==============================================================================
-# PLAY 1: DEPLOY TO STANDARD LINUX HOSTS
-# ==============================================================================
 - name: Deploy SSL to Linux Target Servers
   hosts: "{{ target_server }}"
   become: yes
@@ -10,8 +7,10 @@
     ssl_cert_dir: "/etc/ssl/certs"
     ssl_key_dir: "/etc/ssl/private"
     cert_base_name: "pnj.ac.id"
-    # These point to the mapped Docker volume inside the Semaphore container
-    local_cert_path: "/certs/{{ cert_base_name }}-fullchain.crt"
+    # Mapping the full suite from the Docker volume inside Semaphore
+    local_cert_path: "/certs/{{ cert_base_name }}.crt"
+    local_intermediate_path: "/certs/{{ cert_base_name }}-intermediate.crt"
+    local_fullchain_path: "/certs/{{ cert_base_name }}-fullchain.crt"
     local_key_path: "/certs/{{ cert_base_name }}.key"
 
   tasks:
@@ -37,14 +36,29 @@
         - { path: "{{ ssl_cert_dir }}", group: "root", mode: "0755" }
         - { path: "{{ ssl_key_dir }}", group: "{{ ssl_key_group }}", mode: "0710" }
 
-    - name: Deploy Fullchain Certificate
+    - name: Deploy Standard Certificate
       ansible.builtin.copy:
         src: "{{ local_cert_path }}"
+        dest: "{{ ssl_cert_dir }}/{{ cert_base_name }}.crt"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy Intermediate Certificate (CA Chain)
+      ansible.builtin.copy:
+        src: "{{ local_intermediate_path }}"
+        dest: "{{ ssl_cert_dir }}/{{ cert_base_name }}-intermediate.crt"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy Fullchain Certificate
+      ansible.builtin.copy:
+        src: "{{ local_fullchain_path }}"
         dest: "{{ ssl_cert_dir }}/{{ cert_base_name }}-fullchain.crt"
         owner: root
         group: root
         mode: '0644'
-      notify: Reload Web Server
 
     - name: Deploy Private Key
       ansible.builtin.copy:
@@ -53,18 +67,3 @@
         owner: root
         group: "{{ ssl_key_group }}"
         mode: '0640'
-      notify: Reload Web Server
-
-  handlers:
-    - name: Reload Web Server
-      ansible.builtin.shell: |
-        if command -v systemctl >/dev/null 2>&1; then
-          systemctl reload nginx 2>/dev/null || systemctl reload apache2 2>/dev/null || systemctl reload httpd 2>/dev/null || true
-        elif [ -x /etc/init.d/nginx ]; then
-          /etc/init.d/nginx reload
-        elif [ -x /etc/init.d/httpd ]; then
-          /etc/init.d/httpd reload
-        elif [ -x /etc/init.d/apache2 ]; then
-          /etc/init.d/apache2 reload
-        fi
-      changed_when: true
