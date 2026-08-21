@@ -4,13 +4,14 @@
 # ==============================================================================
 - name: Validate Certificates Before Deployment
   hosts: "{{ validator_server }}"
-  become: no  # No root needed just to check files in /tmp
+  become: no  
   gather_facts: false
   vars:
     cert_base_name: "pnj.ac.id"
     local_cert_path: "/certs/{{ cert_base_name }}.crt"
     local_key_path: "/certs/{{ cert_base_name }}.key"
-    remote_tmp_dir: "/tmp/ssl_validation_{{ lookup('pipe', 'date +%s') }}"
+    # Changed to a static directory to prevent mid-play evaluation changes
+    remote_tmp_dir: "/tmp/ssl_validation_workspace"
 
   tasks:
     - name: Create temporary validation directory
@@ -55,8 +56,7 @@
           ansible.builtin.file:
             path: "{{ remote_tmp_dir }}"
             state: absent
-
-
+            
 # ==============================================================================
 # PLAY 2: DEPLOY TO LINUX TARGET SERVERS (Runs on target_server)
 # ==============================================================================
