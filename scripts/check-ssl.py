@@ -35,11 +35,11 @@ def load_env():
 load_env()
 
 # --- CONFIGURATION ---
-ZONE_ID = os.environ.get("CLOUDFLARE_ZONE_ID", null)
-API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN", null)
+ZONE_ID = os.environ.get("CLOUDFLARE_ZONE_ID", "")
+API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN", "")
 
-BYPASS_HEADER_NAME = os.environ.get("BYPASS_HEADER_NAME", null)
-BYPASS_HEADER_VALUE = os.environ.get("BYPASS_HEADER_VALUE", null)
+BYPASS_HEADER_NAME = os.environ.get("BYPASS_HEADER_NAME", "")
+BYPASS_HEADER_VALUE = os.environ.get("BYPASS_HEADER_VALUE", "")
 
 CF_API_URL = f"https://api.cloudflare.com/client/v4/zones/{ZONE_ID}/dns_records"
 TARGET_CA = "GeoTrust TLS RSA CA G1"
