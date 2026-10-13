@@ -52,7 +52,7 @@
     - name: Determine Categories
       set_fact:
         perf_cpu: >-
-          {% set mc = yabs_data.geekbench[0].multicore | int %}
+          {% set mc = yabs_data.geekbench[0].multi | default(0) | int %}
           {% if mc < cpu_low %}low{% elif mc > cpu_high %}high{% else %}medium{% endif %}
         perf_disk: >-
           {% set iops = yabs_data.fio[0].iops_r | default(0) | int %}
