@@ -24,11 +24,17 @@
         state: present
         update_cache: yes
 
+    - name: Download YABS script
+      get_url:
+        url: https://yabs.sh
+        dest: /tmp/yabs.sh
+        mode: '0755'
+
     - name: Run YABS (CPU & Disk)
-      # YABS output can contain terminal escape sequences even with JSON output.
-      # Writing to file, grep filtering the JSON, then reading ensures clean parsing.
-      shell: "curl -sL yabs.sh | bash -s -- -i -j > /tmp/yabs.json"
-      async: 1800
+      # YABS writes a lot of \r progress bars to stderr, which can fill up Ansible's async buffers and hang.
+      # Downloading it first, passing < /dev/null to prevent input hanging, and redirecting stderr to /dev/null fixes this.
+      shell: "/tmp/yabs.sh -i -j < /dev/null > /tmp/yabs.json 2>/dev/null"
+      async: 2400
       poll: 60
 
     - name: Parse YABS JSON
