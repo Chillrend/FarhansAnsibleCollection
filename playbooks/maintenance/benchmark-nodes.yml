@@ -24,15 +24,20 @@
         state: present
         update_cache: yes
 
-    - name: Run YABS (CPU & Disk) asynchronously
-      shell: "curl -sL yabs.sh | bash -s -- -i -j"
-      register: yabs_output
-      async: 1800 # Allow up to 30 minutes for the benchmark
-      poll: 60    # Check status every 60 seconds to prevent SSH timeouts
-      
+    - name: Run YABS (CPU & Disk)
+      # YABS output can contain terminal escape sequences even with JSON output.
+      # Writing to file, grep filtering the JSON, then reading ensures clean parsing.
+      shell: "curl -sL yabs.sh | bash -s -- -i -j > /tmp/yabs.json"
+      async: 1800
+      poll: 60
+
     - name: Parse YABS JSON
+      shell: "cat /tmp/yabs.json | grep -o '{.*}'"
+      register: yabs_clean_output
+
+    - name: Set YABS Fact
       set_fact:
-        yabs_data: "{{ yabs_output.stdout | from_json }}"
+        yabs_data: "{{ yabs_clean_output.stdout | from_json }}"
 
     - name: Run iperf3 Network Test
       command: "iperf3 -c {{ iperf_server }} -J"
