@@ -3,7 +3,6 @@
   hosts: rke_cluster
   become: yes
   gather_facts: no
-  ignore_unreachable: yes
   vars:
     # 10G Server IP
     iperf_server: 10.152.0.114
@@ -16,6 +15,15 @@
     net_1g: 1500
 
   tasks:
+    - name: Check node reachability
+      ping:
+      ignore_unreachable: yes
+      register: node_ping
+
+    - name: End play for offline nodes
+      meta: end_host
+      when: node_ping.unreachable is defined and node_ping.unreachable
+
     - name: Ensure benchmark tools are installed
       apt:
         name:
