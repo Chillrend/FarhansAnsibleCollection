@@ -29,16 +29,15 @@
         url: https://raw.githubusercontent.com/masonr/yet-another-bench-script/master/yabs.sh
         dest: /tmp/yabs.sh
         mode: '0755'
+        force: yes
 
     - name: Run YABS (CPU & Disk)
-      # YABS writes a lot of \r progress bars to stderr, which can fill up Ansible's async buffers and hang.
-      # Downloading it first, passing < /dev/null to prevent input hanging, and redirecting stderr to /dev/null fixes this.
-      shell: "/tmp/yabs.sh -i -j < /dev/null > /tmp/yabs.json 2>/dev/null"
+      shell: "bash /tmp/yabs.sh -i -w /tmp/yabs.json > /dev/null < /dev/null"
       async: 2400
       poll: 60
 
     - name: Parse YABS JSON
-      shell: "cat /tmp/yabs.json | grep -o '{.*}'"
+      shell: "cat /tmp/yabs.json"
       register: yabs_clean_output
 
     - name: Set YABS Fact
