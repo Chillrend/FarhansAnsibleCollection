@@ -66,28 +66,25 @@
 
     - name: Determine Categories
       set_fact:
-        perf_cpu: >-
-          {% set eps = (sysbench_output.stdout | default(0)) | float | int %}
-          {% if eps < cpu_low %}low{% elif eps > cpu_high %}high{% else %}medium{% endif %}
-        perf_disk: >-
-          {% set iops = (fio_data.jobs[0].read.iops | default(0)) | float | int %}
-          {% if iops < disk_hdd %}hdd{% elif iops > disk_nvme %}nvme{% else %}ssd{% endif %}
-        perf_net: >-
-          {% if iperf_output.rc == 0 %}
-            {% set mbps = (iperf_data.end.sum_received.bits_per_second / 1000000) | int %}
-            {% if mbps > net_1g %}10g{% else %}1g{% endif %}
-          {% else %}
-            unknown
-          {% endif %}
+        perf_cpu: "{{ 'low' if ((sysbench_output.stdout | default(0) | float) < cpu_low) else ('high' if ((sysbench_output.stdout | default(0) | float) > cpu_high) else 'medium') }}"
+        perf_disk: "{{ 'hdd' if ((fio_data.jobs[0].read.iops | default(0) | float) < disk_hdd) else ('nvme' if ((fio_data.jobs[0].read.iops | default(0) | float) > disk_nvme) else 'ssd') }}"
+        perf_net: "{{ ('10g' if ((iperf_data.end.sum_received.bits_per_second | default(0)) / 1000000 > net_1g) else '1g') if (iperf_output.rc == 0) else 'unknown' }}"
+
+    - name: Display Benchmark Results
+      debug:
+        msg:
+          - "CPU  : {{ sysbench_output.stdout | default('0') | trim }} events/sec -> perf/cpu={{ perf_cpu }}"
+          - "Disk : {{ (fio_data.jobs[0].read.iops | default(0)) | round(1) }} IOPS -> perf/disk={{ perf_disk }}"
+          - "Net  : {{ ((iperf_data.end.sum_received.bits_per_second | default(0)) / 1000000) | round(1) if iperf_output.rc == 0 else 'N/A' }} Mbps -> perf/net={{ perf_net }}"
 
     - name: Label Kubernetes Node
       command: >
         kubectl label node {{ inventory_hostname }}
-        perf/cpu={{ perf_cpu }}
-        perf/disk={{ perf_disk }}
-        perf/net={{ perf_net }}
+        perf/cpu={{ perf_cpu | trim }}
+        perf/disk={{ perf_disk | trim }}
+        perf/net={{ perf_net | trim }}
         {% if node_taint is defined and node_taint != '' %}
-        status/stability={{ node_taint }}
+        status/stability={{ node_taint | trim }}
         {% endif %}
         --overwrite
       delegate_to: ansible-upatik
