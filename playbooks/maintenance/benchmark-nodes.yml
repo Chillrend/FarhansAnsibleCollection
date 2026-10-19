@@ -3,6 +3,7 @@
   hosts: rke_cluster
   become: yes
   gather_facts: no
+  ignore_unreachable: yes
   vars:
     # 10G Server IP
     iperf_server: 10.152.0.114
@@ -10,8 +11,8 @@
     # Thresholds
     cpu_low: 3000
     cpu_high: 8000
-    disk_hdd: 1000
-    disk_nvme: 10000
+    disk_hdd: 2000
+    disk_nvme: 40000
     net_1g: 1500
 
   tasks:
@@ -58,6 +59,7 @@
       command: "iperf3 -c {{ iperf_server }} -J"
       register: iperf_output
       ignore_errors: yes # Don't fail the whole playbook if the iperf server hiccups
+      throttle: 1
 
     - name: Parse iperf3 JSON
       set_fact:
