@@ -21,28 +21,38 @@
           - curl
           - iperf3
           - jq
+          - sysbench
+          - fio
         state: present
         update_cache: yes
 
-    - name: Download YABS script
-      get_url:
-        url: https://raw.githubusercontent.com/masonr/yet-another-bench-script/master/yabs.sh
-        dest: /tmp/yabs.sh
-        mode: '0755'
-        force: yes
+    - name: Run Sysbench Multi-Core CPU Benchmark
+      shell: "sysbench cpu --threads=$(nproc) --time=10 run | awk '/events per second:/ {print $4}'"
+      register: sysbench_output
 
-    - name: Run YABS (CPU & Disk)
-      shell: "bash /tmp/yabs.sh -i -w /tmp/yabs.json > /dev/null < /dev/null"
-      async: 2400
-      poll: 60
+    - name: Run fio Disk Benchmark
+      command: >
+        fio --name=bench
+        --ioengine=libaio
+        --rw=randread
+        --bs=4k
+        --iodepth=16
+        --runtime=10
+        --time_based
+        --filename=/tmp/fio_bench.tmp
+        --size=256M
+        --direct=1
+        --output-format=json
+      register: fio_output
 
-    - name: Parse YABS JSON
-      shell: "cat /tmp/yabs.json"
-      register: yabs_clean_output
+    - name: Clean up fio benchmark file
+      file:
+        path: /tmp/fio_bench.tmp
+        state: absent
 
-    - name: Set YABS Fact
+    - name: Parse fio JSON
       set_fact:
-        yabs_data: "{{ yabs_clean_output.stdout | from_json }}"
+        fio_data: "{{ fio_output.stdout | from_json }}"
 
     - name: Run iperf3 Network Test
       command: "iperf3 -c {{ iperf_server }} -J"
@@ -57,10 +67,10 @@
     - name: Determine Categories
       set_fact:
         perf_cpu: >-
-          {% set mc = yabs_data.geekbench[0].multi | default(0) | int %}
-          {% if mc < cpu_low %}low{% elif mc > cpu_high %}high{% else %}medium{% endif %}
+          {% set eps = (sysbench_output.stdout | default(0)) | float | int %}
+          {% if eps < cpu_low %}low{% elif eps > cpu_high %}high{% else %}medium{% endif %}
         perf_disk: >-
-          {% set iops = yabs_data.fio[0].iops_r | default(0) | int %}
+          {% set iops = (fio_data.jobs[0].read.iops | default(0)) | float | int %}
           {% if iops < disk_hdd %}hdd{% elif iops > disk_nvme %}nvme{% else %}ssd{% endif %}
         perf_net: >-
           {% if iperf_output.rc == 0 %}
