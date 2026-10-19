@@ -26,7 +26,7 @@
 
     - name: Download YABS script
       get_url:
-        url: https://yabs.sh
+        url: https://raw.githubusercontent.com/masonr/yet-another-bench-script/master/yabs.sh
         dest: /tmp/yabs.sh
         mode: '0755'
 
