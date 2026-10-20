@@ -1,0 +1,27 @@
+---
+- name: Check Inventory OS Versions and EOL Status
+  hosts: "{{ target_server | default('all') }}"
+  gather_facts: yes
+  tasks:
+    - name: Determine OS EOL status
+      ansible.builtin.set_fact:
+        is_eol: >-
+          {{
+            (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] | int <= 11) or
+            (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int < 22) or
+            (ansible_facts['distribution'] in ['CentOS', 'CentOS Stream'] and ansible_facts['distribution_major_version'] | int <= 8) or
+            (ansible_facts['distribution'] == 'RedHat' and ansible_facts['distribution_major_version'] | int <= 7)
+          }}
+
+    - name: Display OS details and status
+      ansible.builtin.debug:
+        msg:
+          - "Host    : {{ inventory_hostname }}"
+          - "OS      : {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} ({{ ansible_facts['distribution_release'] | default('N/A') }})"
+          - "Kernel  : {{ ansible_facts['kernel'] }}"
+          - "Status  : {{ '⚠️  EOL (End of Life)' if is_eol else '✅ Supported' }}"
+
+    - name: Warn if OS is End-of-Life (EOL)
+      ansible.builtin.debug:
+        msg: "WARNING: {{ inventory_hostname }} is running {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}, which has reached End-of-Life (EOL)!"
+      when: is_eol

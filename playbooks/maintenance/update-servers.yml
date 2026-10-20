@@ -1,8 +1,30 @@
 ---
 - name: Universal Server Patch Management
-  hosts: all
+  hosts: "{{ target_server | default('all') }}"
   become: yes
   tasks:
+
+    # ---------------------------------------------------------
+    # PRE-CHECK: DETECT & EXCLUDE EOL HOSTS
+    # ---------------------------------------------------------
+    - name: Determine OS EOL status
+      ansible.builtin.set_fact:
+        is_eol: >-
+          {{
+            (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] | int <= 11) or
+            (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int < 22) or
+            (ansible_facts['distribution'] in ['CentOS', 'CentOS Stream'] and ansible_facts['distribution_major_version'] | int <= 8) or
+            (ansible_facts['distribution'] == 'RedHat' and ansible_facts['distribution_major_version'] | int <= 7)
+          }}
+
+    - name: Warn on End-of-Life (EOL) operating system
+      ansible.builtin.debug:
+        msg: "WARNING: {{ inventory_hostname }} is running {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} (EOL). Skipping patch management."
+      when: is_eol
+
+    - name: Exclude EOL hosts from update
+      ansible.builtin.meta: end_host
+      when: is_eol
 
     # ---------------------------------------------------------
     # DEBIAN / UBUNTU FAMILY
@@ -17,6 +39,19 @@
       ansible.builtin.apt:
         update_cache: yes
         upgrade: dist
+      when: 
+        - ansible_facts['os_family'] == "Debian"
+        - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] | int >= 11) or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int >= 22)
+
+    - name: Autoremove unused packages (Legacy Debian 10 & Ubuntu 20 - Shell Workaround)
+      ansible.builtin.shell: apt-get autoremove -y
+      when: 
+        - ansible_facts['os_family'] == "Debian"
+        - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] <= '10') or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] <= '20')
+
+    - name: Autoremove unused packages (Modern Debian 11+ & Ubuntu 22+)
+      ansible.builtin.apt:
+        autoremove: yes
       when: 
         - ansible_facts['os_family'] == "Debian"
         - (ansible_facts['distribution'] == 'Debian' and ansible_facts['distribution_major_version'] | int >= 11) or (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int >= 22)
@@ -36,6 +71,20 @@
         name: '*'
         state: latest
         update_cache: yes
+      when: 
+        - ansible_facts['os_family'] == "RedHat"
+        - ansible_facts['distribution_major_version'] | int >= 8
+
+    - name: Autoremove unused packages (Legacy CentOS 4 and CentOS 7 - Shell Workaround)
+      ansible.builtin.shell: yum autoremove -y
+      failed_when: false
+      when: 
+        - ansible_facts['os_family'] == "RedHat"
+        - ansible_facts['distribution_major_version'] | int <= 7
+
+    - name: Autoremove unused packages (Modern Rocky / CentOS 8+)
+      ansible.builtin.dnf:
+        autoremove: yes
       when: 
         - ansible_facts['os_family'] == "RedHat"
         - ansible_facts['distribution_major_version'] | int >= 8

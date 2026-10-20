@@ -7,8 +7,9 @@ A collection of Ansible playbooks for server maintenance and provisioning, optim
 ```
 playbooks/
 ├── maintenance/
+│   ├── check-os-version.yml        # Inventory OS version & EOL check
 │   ├── quick-inventory-check.yml   # Connectivity & uptime check
-│   └── update-servers.yml          # Cross-distro patch management
+│   └── update-servers.yml          # Cross-distro patch & autoremove management
 └── provisioning/
     ├── deploy-ssl-certs.yml        # SSL certificate deployment
     └── install-netbird.yml         # NetBird VPN agent setup
@@ -17,6 +18,14 @@ playbooks/
 ## Playbooks
 
 ### Maintenance
+
+#### `check-os-version.yml`
+
+Gathers facts across hosts, prints OS distribution, version, and kernel info, and warns if the host OS has reached End-of-Life (Debian ≤ 11, Ubuntu < 22.04, CentOS ≤ 8, RHEL ≤ 7).
+
+```bash
+ansible-playbook playbooks/maintenance/check-os-version.yml -i inventory
+```
 
 #### `quick-inventory-check.yml`
 
@@ -28,9 +37,9 @@ ansible-playbook playbooks/maintenance/quick-inventory-check.yml -i inventory
 
 #### `update-servers.yml`
 
-Cross-distro patching that handles:
+Cross-distro patching and package autoremove. Pre-checks hosts and warns/skips End-of-Life systems (Debian ≤ 11, Ubuntu < 22.04, CentOS ≤ 8, RHEL ≤ 7) to prevent hangs or mirror failures:
 
-| Distro Family | Legacy | Modern |
+| Distro Family | Legacy Update & Autoremove | Modern Update & Autoremove |
 |---|---|---|
 | Debian / Ubuntu | ≤ Debian 10 / Ubuntu 20 (`apt-get` via shell) | Debian 11+ / Ubuntu 22+ (`apt` module) |
 | RHEL / CentOS / Rocky | ≤ CentOS 7 (`yum` via shell) | CentOS / Rocky 8+ (`dnf` module) |
