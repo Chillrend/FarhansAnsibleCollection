@@ -2,7 +2,7 @@
 - name: Benchmark and Label RKE Cluster Nodes
   hosts: rke_cluster
   become: yes
-  gather_facts: no
+  gather_facts: yes
   vars:
     # 10G Server IP
     iperf_server: 10.152.0.114
@@ -83,6 +83,7 @@
     - name: Display Benchmark Results
       debug:
         msg:
+          - "Specs: {{ ansible_processor[2] | default(ansible_processor[0]) | default('Unknown CPU') }} ({{ ansible_processor_vcpus | default(0) }} vCPUs), {{ (ansible_memtotal_mb / 1024) | round(2) if ansible_memtotal_mb is defined else 0 }} GB RAM, {{ ansible_distribution | default('Unknown OS') }} {{ ansible_distribution_version | default('') }}"
           - "CPU  : {{ sysbench_output.stdout | default('0') | trim }} events/sec -> perf/cpu={{ perf_cpu }}"
           - "Disk : {{ (fio_data.jobs[0].read.iops | default(0)) | round(1) }} IOPS -> perf/disk={{ perf_disk }}"
           - "Net  : {{ ((iperf_data.end.sum_received.bits_per_second | default(0)) / 1000000) | round(1) if iperf_output.rc == 0 else 'N/A' }} Mbps -> perf/net={{ perf_net }}"
@@ -93,9 +94,18 @@
         perf/cpu={{ perf_cpu | trim }}
         perf/disk={{ perf_disk | trim }}
         perf/net={{ perf_net | trim }}
-        {% if node_taint is defined and node_taint != '' %}
-        status/stability={{ node_taint | trim }}
+        {% if taint is defined and taint != '' %}
+        status/stability={{ taint | trim }}
         {% endif %}
         --overwrite
       delegate_to: ansible-upatik
       become: no # Ensure we run as the 'ansible' user which has the kubeconfig
+
+    - name: Taint Kubernetes Node
+      command: >
+        kubectl taint node {{ inventory_hostname }}
+        status/stability={{ taint | trim }}:NoExecute
+        --overwrite
+      delegate_to: ansible-upatik
+      become: no
+      when: taint is defined and taint != ''
