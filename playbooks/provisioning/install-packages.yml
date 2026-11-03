@@ -1,0 +1,22 @@
+---
+- name: Install Packages
+  hosts: "{{ target_server | default('all') }}"
+  become: yes
+  tasks:
+    - name: Validate package survey input
+      ansible.builtin.assert:
+        that:
+          - packages is defined
+          - packages | trim | length > 0
+        fail_msg: "Please specify package(s) to install in the 'packages' survey variable."
+
+    - name: Update apt cache (Debian / Ubuntu)
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install packages
+      ansible.builtin.package:
+        name: "{{ packages.split() }}"
+        state: present
